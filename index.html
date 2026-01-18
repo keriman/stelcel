@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Triangulacion de Antenas - Sabana Telcel</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .top-bar {
+            background: #16213e;
+            padding: 10px 20px;
+            display: none;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid #0f3460;
+            flex-wrap: wrap;
+        }
+        .top-bar.visible {
+            display: flex;
+        }
+        .top-bar h1 {
+            font-size: 1.1em;
+            color: #00d9ff;
+            margin-right: 10px;
+            white-space: nowrap;
+        }
+        .stats-inline {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85em;
+            background: #0f3460;
+            padding: 8px 15px;
+            border-radius: 5px;
+        }
+        .stats-inline .stat-item {
+            display: flex;
+            gap: 5px;
+        }
+        .stats-inline .stat-value {
+            color: #00d9ff;
+            font-weight: bold;
+        }
+        .filters-inline {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+        .filters-inline .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .filters-inline label {
+            font-size: 0.8em;
+            color: #aaa;
+            white-space: nowrap;
+        }
+        .filters-inline input, .filters-inline select {
+            padding: 6px 10px;
+            border: 1px solid #00d9ff;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 0.85em;
+        }
+        .filters-inline select {
+            min-width: 120px;
+        }
+        .filters-inline input[type="date"] {
+            width: 130px;
+        }
+        .filters-inline input[type="text"] {
+            width: 140px;
+        }
+        .btn-small {
+            background: #00d9ff;
+            color: #1a1a2e;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85em;
+            transition: all 0.3s;
+        }
+        .btn-small:hover {
+            background: #00b8d4;
+        }
+        .btn-small.btn-secondary {
+            background: #e94560;
+            color: white;
+        }
+        .btn-small.btn-secondary:hover {
+            background: #c73e54;
+        }
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 350px;
+            background: #16213e;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar.with-data {
+            padding-top: 10px;
+        }
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        .upload-area {
+            border: 2px dashed #00d9ff;
+            border-radius: 10px;
+            padding: 40px 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+        .upload-area:hover {
+            background: rgba(0, 217, 255, 0.1);
+        }
+        .upload-area input {
+            display: none;
+        }
+        .upload-area h2 {
+            color: #00d9ff;
+            margin-bottom: 10px;
+        }
+        .upload-area.hidden {
+            display: none;
+        }
+        .records-list {
+            flex: 1;
+            overflow-y: auto;
+            background: #0f3460;
+            border-radius: 8px;
+            padding: 10px;
+            display: none;
+        }
+        .records-list.visible {
+            display: flex;
+            flex-direction: column;
+        }
+        .records-list h3 {
+            color: #00d9ff;
+            margin-bottom: 10px;
+            font-size: 1em;
+            position: sticky;
+            top: 0;
+            background: #0f3460;
+            padding: 5px 0;
+            z-index: 1;
+        }
+        .records-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .record-item {
+            background: #1a1a2e;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .record-item:hover {
+            border-left-color: #00d9ff;
+            transform: translateX(3px);
+        }
+        .record-item.selected {
+            border-left-color: #e94560;
+            background: #2a2a4e;
+        }
+        .record-item .type {
+            font-size: 0.75em;
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-bottom: 5px;
+        }
+        .record-item .type.datos {
+            background: #9c27b0;
+            color: white;
+        }
+        .record-item .type.voz-entrante {
+            background: #2196f3;
+            color: white;
+        }
+        .record-item .type.voz-saliente {
+            background: #4caf50;
+            color: white;
+        }
+        .record-item .type.sms-entrante {
+            background: #ff9800;
+            color: white;
+        }
+        .record-item .type.sms-saliente {
+            background: #ffc107;
+            color: #333;
+        }
+        .record-item .datetime {
+            font-size: 0.85em;
+            color: #00d9ff;
+        }
+        .record-item .number {
+            font-size: 0.9em;
+            margin: 3px 0;
+        }
+        .record-item .location {
+            font-size: 0.8em;
+            color: #888;
+        }
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(22, 33, 62, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            font-size: 0.85em;
+        }
+        .legend h4 {
+            color: #00d9ff;
+            margin-bottom: 10px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 50%;
+        }
+        .azimuth-control {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(22, 33, 62, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+        }
+        .azimuth-control label {
+            display: block;
+            margin-bottom: 5px;
+            color: #00d9ff;
+            font-size: 0.9em;
+        }
+        .azimuth-control input[type="range"] {
+            width: 150px;
+        }
+        .azimuth-control span {
+            display: inline-block;
+            width: 50px;
+            text-align: right;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .checkbox-group input {
+            width: auto;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="top-bar" id="topBar">
+            <h1>Triangulacion Antenas</h1>
+            <div class="stats-inline">
+                <div class="stat-item">
+                    <span>Registros:</span>
+                    <span class="stat-value" id="totalRecords">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Con ubicacion:</span>
+                    <span class="stat-value" id="withLocation">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Antenas:</span>
+                    <span class="stat-value" id="uniqueAntennas">0</span>
+                </div>
+            </div>
+
+            <div class="filters-inline">
+                <div class="filter-group">
+                    <label>Tipo:</label>
+                    <select id="filterType">
+                        <option value="">Todos</option>
+                        <option value="DATOS">Datos</option>
+                        <option value="VOZ SALIENTE">Voz Saliente</option>
+                        <option value="VOZ ENTRANTE">Voz Entrante</option>
+                        <option value="SMS SALIENTE">SMS Saliente</option>
+                        <option value="SMS ENTRANTE">SMS Entrante</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Desde:</label>
+                    <input type="date" id="filterDateFrom" />
+                </div>
+                <div class="filter-group">
+                    <label>Hasta:</label>
+                    <input type="date" id="filterDateTo" />
+                </div>
+                <div class="filter-group">
+                    <label>Numero:</label>
+                    <input type="text" id="filterNumber" placeholder="Buscar..." />
+                </div>
+                <button class="btn-small" onclick="applyFilters()">Filtrar</button>
+                <button class="btn-small btn-secondary" onclick="clearFilters()">Limpiar</button>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <div class="sidebar" id="sidebar">
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" />
+                    <h2>Triangulacion de Antenas</h2>
+                    <p>Click para cargar archivo Excel</p>
+                    <p style="font-size: 0.8em; color: #888; margin-top: 5px;">(.xlsx, .xls)</p>
+                </div>
+
+                <div class="records-list" id="recordsList">
+                    <h3>Registros (<span id="filteredCount">0</span>)</h3>
+                    <div class="records-container" id="recordsContainer"></div>
+                </div>
+            </div>
+
+            <div class="map-container">
+                <div id="map"></div>
+
+                <div class="azimuth-control" id="azimuthControl" style="display: none;">
+                    <label>Longitud del haz:</label>
+                    <input type="range" id="beamLength" min="100" max="5000" value="1000" />
+                    <span id="beamLengthValue">1000m</span>
+
+                    <label style="margin-top: 10px;">Apertura del haz:</label>
+                    <input type="range" id="beamWidth" min="5" max="120" value="30" />
+                    <span id="beamWidthValue">30°</span>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showBeamArea" checked />
+                        <label>Mostrar area de cobertura</label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showAllAntennas" />
+                        <label>Mostrar todas las antenas</label>
+                    </div>
+                </div>
+
+                <div class="legend" id="legend" style="display: none;">
+                    <h4>Tipos de Registro</h4>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #4caf50;"></div>
+                        <span>Voz Saliente</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #2196f3;"></div>
+                        <span>Voz Entrante</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ffc107;"></div>
+                        <span>SMS Saliente</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff9800;"></div>
+                        <span>SMS Entrante</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #9c27b0;"></div>
+                        <span>Datos</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        const map = L.map('map').setView([19.43, -99.13], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        let allRecords = [];
+        let filteredRecords = [];
+        let markers = L.layerGroup().addTo(map);
+        let beamLayers = L.layerGroup().addTo(map);
+        let allAntennasLayer = L.layerGroup().addTo(map);
+        let selectedRecords = new Set();
+
+        function parseDMS(dmsStr) {
+            if (!dmsStr || dmsStr.trim() === '' || dmsStr.trim() === '-') return null;
+
+            let cleaned = dmsStr.trim();
+
+            if (cleaned === '-' || cleaned === ' - ') return null;
+
+            const pattern = /(\d+)[^\d]+(\d+)[''\u2019](\d+(?:\.\d+)?)[""\u201D]?\s*([NSEW])/i;
+            let match = cleaned.match(pattern);
+
+            if (!match) {
+                const pattern2 = /(\d+)\D+(\d+)\D+(\d+(?:\.\d+)?)\D*([NSEW])/i;
+                match = cleaned.match(pattern2);
+            }
+
+            if (!match) {
+                const decimal = parseFloat(cleaned);
+                if (!isNaN(decimal)) return decimal;
+                return null;
+            }
+
+            const degrees = parseFloat(match[1]);
+            const minutes = parseFloat(match[2]);
+            const seconds = parseFloat(match[3]);
+            const direction = match[4] ? match[4].toUpperCase() : '';
+
+            let decimal = degrees + minutes / 60 + seconds / 3600;
+
+            if (direction === 'S' || direction === 'W') {
+                decimal = -decimal;
+            }
+
+            return decimal;
+        }
+
+        function parseAzimuth(azStr) {
+            if (!azStr || azStr === '-' || azStr.trim() === '') return null;
+
+            const cleaned = azStr.toString().replace(/[°�]/g, '').trim();
+            const value = parseFloat(cleaned);
+
+            return isNaN(value) ? null : value;
+        }
+
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+
+            if (dateStr instanceof Date) {
+                return dateStr;
+            }
+
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                return new Date(parts[2], parts[1] - 1, parts[0]);
+            }
+            return new Date(dateStr);
+        }
+
+        function formatDate(date) {
+            if (!date) return '-';
+            const d = new Date(date);
+            return d.toLocaleDateString('es-MX');
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+                processData(jsonData);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function processData(data) {
+            allRecords = data.map((row, index) => {
+                const latCol = row['Ubicacion Geografica (LATITUD / LONGITUD)'] || row['Ubicacion Geografica'] || '';
+                const lonCol = row[''] || row['Unnamed: 9'] || row['__EMPTY'] || '';
+
+                const lat = parseDMS(latCol);
+                const lon = parseDMS(lonCol);
+                const azimuth = parseAzimuth(row['Azimuth'] || row['Azimut']);
+
+                return {
+                    id: index,
+                    telefono: row['Telefono '] || row['Telefono'],
+                    tipo: row['Tipo'] || '',
+                    numeroA: row['Numero A'] || '',
+                    numeroB: row['Numero B'] || '',
+                    fecha: row['Fecha'],
+                    hora: row['Hora'] || '',
+                    duracion: row['Durac. Seg.'] || 0,
+                    imei: row['IMEI'] || '',
+                    lat: lat,
+                    lon: lon,
+                    azimuth: azimuth,
+                    hasLocation: lat !== null && lon !== null
+                };
+            });
+
+            filteredRecords = [...allRecords];
+            updateStats();
+            updateRecordsList();
+            showPanels();
+
+            const recordsWithLocation = allRecords.filter(r => r.hasLocation);
+            if (recordsWithLocation.length > 0) {
+                const bounds = L.latLngBounds(recordsWithLocation.map(r => [r.lat, r.lon]));
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+
+            if (document.getElementById('showAllAntennas').checked) {
+                showAllAntennas();
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('totalRecords').textContent = allRecords.length;
+            document.getElementById('withLocation').textContent = allRecords.filter(r => r.hasLocation).length;
+
+            const uniqueLocations = new Set();
+            allRecords.forEach(r => {
+                if (r.hasLocation) {
+                    uniqueLocations.add(`${r.lat.toFixed(5)},${r.lon.toFixed(5)}`);
+                }
+            });
+            document.getElementById('uniqueAntennas').textContent = uniqueLocations.size;
+        }
+
+        function showPanels() {
+            document.getElementById('uploadArea').classList.add('hidden');
+            document.getElementById('topBar').classList.add('visible');
+            document.getElementById('recordsList').classList.add('visible');
+            document.getElementById('sidebar').classList.add('with-data');
+            document.getElementById('azimuthControl').style.display = 'block';
+            document.getElementById('legend').style.display = 'block';
+        }
+
+        function updateRecordsList() {
+            const container = document.getElementById('recordsContainer');
+            document.getElementById('filteredCount').textContent = filteredRecords.length;
+
+            const displayRecords = filteredRecords.slice(0, 500);
+
+            container.innerHTML = displayRecords.map(r => `
+                <div class="record-item ${selectedRecords.has(r.id) ? 'selected' : ''}"
+                     onclick="toggleRecord(${r.id})"
+                     data-id="${r.id}">
+                    <span class="type ${getTypeClass(r.tipo)}">${r.tipo}</span>
+                    <div class="datetime">${r.fecha} ${r.hora}</div>
+                    <div class="number"><strong>B:</strong> ${r.numeroB}</div>
+                    <div class="location">
+                        ${r.hasLocation ?
+                            `${r.lat?.toFixed(5)}, ${r.lon?.toFixed(5)} | Az: ${r.azimuth !== null ? r.azimuth + '°' : '-'}`
+                            : 'Sin ubicacion'}
+                    </div>
+                </div>
+            `).join('');
+
+            if (filteredRecords.length > 500) {
+                container.innerHTML += `<p style="text-align: center; color: #888; padding: 10px;">
+                    Mostrando 500 de ${filteredRecords.length} registros
+                </p>`;
+            }
+        }
+
+        function getTypeClass(tipo) {
+            if (tipo.includes('DATOS')) return 'datos';
+            if (tipo.includes('VOZ ENTRANTE')) return 'voz-entrante';
+            if (tipo.includes('VOZ SALIENTE')) return 'voz-saliente';
+            if (tipo.includes('SMS ENTRANTE')) return 'sms-entrante';
+            if (tipo.includes('SMS SALIENTE')) return 'sms-saliente';
+            return '';
+        }
+
+        function getTypeColor(tipo) {
+            if (tipo.includes('DATOS')) return '#9c27b0';           
+            if (tipo.includes('VOZ ENTRANTE')) return '#2196f3';    
+            if (tipo.includes('VOZ SALIENTE')) return '#4caf50';    
+            if (tipo.includes('SMS ENTRANTE')) return '#ff9800';    
+            if (tipo.includes('SMS SALIENTE')) return '#ffc107';    
+            return '#e94560';                                       
+        }
+
+        function toggleRecord(id) {
+            if (selectedRecords.has(id)) {
+                selectedRecords.delete(id);
+            } else {
+                selectedRecords.add(id);
+            }
+
+            document.querySelectorAll('.record-item').forEach(item => {
+                const itemId = parseInt(item.dataset.id);
+                if (selectedRecords.has(itemId)) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+
+            updateMap();
+        }
+
+        function updateMap() {
+            markers.clearLayers();
+            beamLayers.clearLayers();
+
+            const beamLength = parseInt(document.getElementById('beamLength').value);
+            const beamWidth = parseInt(document.getElementById('beamWidth').value);
+            const showArea = document.getElementById('showBeamArea').checked;
+
+            selectedRecords.forEach(id => {
+                const record = allRecords.find(r => r.id === id);
+                if (!record || !record.hasLocation) return;
+
+                const color = getTypeColor(record.tipo);
+
+                const marker = L.circleMarker([record.lat, record.lon], {
+                    radius: 10,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    fillOpacity: 0.9
+                }).bindPopup(`
+                    <strong>${record.tipo}</strong><br>
+                    Fecha: ${record.fecha} ${record.hora}<br>
+                    Numero B: ${record.numeroB}<br>
+                    Duracion: ${record.duracion}s<br>
+                    Azimut: ${record.azimuth !== null ? record.azimuth + '°' : 'N/A'}<br>
+                    Coordenadas: ${record.lat.toFixed(5)}, ${record.lon.toFixed(5)}
+                `);
+                markers.addLayer(marker);
+
+                if (record.azimuth !== null) {
+                    drawBeam(record.lat, record.lon, record.azimuth, beamLength, beamWidth, showArea, color);
+                }
+            });
+
+            if (selectedRecords.size > 0) {
+                const selectedWithLocation = Array.from(selectedRecords)
+                    .map(id => allRecords.find(r => r.id === id))
+                    .filter(r => r && r.hasLocation);
+
+                if (selectedWithLocation.length > 0) {
+                    const bounds = L.latLngBounds(selectedWithLocation.map(r => [r.lat, r.lon]));
+                    map.fitBounds(bounds, { padding: [100, 100], maxZoom: 15 });
+                }
+            }
+        }
+
+        function drawBeam(lat, lon, azimuth, length, width, showArea, color) {
+            const endPoint = calculateDestination(lat, lon, azimuth, length);
+
+            const centerLine = L.polyline([[lat, lon], endPoint], {
+                color: color,
+                weight: 3,
+                opacity: 0.9,
+                dashArray: '10, 5'
+            });
+            beamLayers.addLayer(centerLine);
+
+            if (showArea) {
+                const halfWidth = width / 2;
+
+                const arcPoints = [[lat, lon]];
+                for (let angle = azimuth - halfWidth; angle <= azimuth + halfWidth; angle += 2) {
+                    arcPoints.push(calculateDestination(lat, lon, angle, length));
+                }
+                arcPoints.push([lat, lon]);
+
+                const cone = L.polygon(arcPoints, {
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.25,
+                    weight: 1
+                });
+                beamLayers.addLayer(cone);
+            }
+        }
+
+        function calculateDestination(lat, lon, azimuth, distance) {
+            const R = 6371000; 
+            const d = distance;
+            const brng = azimuth * Math.PI / 180;
+            const lat1 = lat * Math.PI / 180;
+            const lon1 = lon * Math.PI / 180;
+
+            const lat2 = Math.asin(
+                Math.sin(lat1) * Math.cos(d / R) +
+                Math.cos(lat1) * Math.sin(d / R) * Math.cos(brng)
+            );
+
+            const lon2 = lon1 + Math.atan2(
+                Math.sin(brng) * Math.sin(d / R) * Math.cos(lat1),
+                Math.cos(d / R) - Math.sin(lat1) * Math.sin(lat2)
+            );
+
+            return [lat2 * 180 / Math.PI, lon2 * 180 / Math.PI];
+        }
+
+        function showAllAntennas() {
+            allAntennasLayer.clearLayers();
+
+            const uniqueAntennas = new Map();
+            allRecords.forEach(r => {
+                if (r.hasLocation) {
+                    const key = `${r.lat.toFixed(5)},${r.lon.toFixed(5)}`;
+                    if (!uniqueAntennas.has(key)) {
+                        uniqueAntennas.set(key, {
+                            lat: r.lat,
+                            lon: r.lon,
+                            count: 1,
+                            azimuth: r.azimuth
+                        });
+                    } else {
+                        uniqueAntennas.get(key).count++;
+                    }
+                }
+            });
+
+            uniqueAntennas.forEach((antenna, key) => {
+                const marker = L.circleMarker([antenna.lat, antenna.lon], {
+                    radius: 5,
+                    fillColor: '#4caf50',
+                    color: '#fff',
+                    weight: 1,
+                    fillOpacity: 0.7
+                }).bindPopup(`
+                    Antena<br>
+                    Coordenadas: ${antenna.lat.toFixed(5)}, ${antenna.lon.toFixed(5)}<br>
+                    Registros: ${antenna.count}<br>
+                    Azimut: ${antenna.azimuth !== null ? antenna.azimuth + '°' : 'N/A'}
+                `);
+                allAntennasLayer.addLayer(marker);
+            });
+        }
+
+        function applyFilters() {
+            const type = document.getElementById('filterType').value;
+            const dateFrom = document.getElementById('filterDateFrom').value;
+            const dateTo = document.getElementById('filterDateTo').value;
+            const number = document.getElementById('filterNumber').value.toLowerCase();
+
+            filteredRecords = allRecords.filter(r => {
+                if (type && !r.tipo.includes(type)) return false;
+
+                if (dateFrom) {
+                    const recordDate = parseDate(r.fecha);
+                    const fromDate = new Date(dateFrom);
+                    if (recordDate < fromDate) return false;
+                }
+
+                if (dateTo) {
+                    const recordDate = parseDate(r.fecha);
+                    const toDate = new Date(dateTo);
+                    if (recordDate > toDate) return false;
+                }
+
+                if (number && !r.numeroB.toLowerCase().includes(number)) return false;
+
+                return true;
+            });
+
+            updateRecordsList();
+        }
+
+        function clearFilters() {
+            document.getElementById('filterType').value = '';
+            document.getElementById('filterDateFrom').value = '';
+            document.getElementById('filterDateTo').value = '';
+            document.getElementById('filterNumber').value = '';
+            filteredRecords = [...allRecords];
+            updateRecordsList();
+        }
+
+        document.getElementById('beamLength').addEventListener('input', function() {
+            document.getElementById('beamLengthValue').textContent = this.value + 'm';
+            updateMap();
+        });
+
+        document.getElementById('beamWidth').addEventListener('input', function() {
+            document.getElementById('beamWidthValue').textContent = this.value + '°';
+            updateMap();
+        });
+
+        document.getElementById('showBeamArea').addEventListener('change', updateMap);
+
+        document.getElementById('showAllAntennas').addEventListener('change', function() {
+            if (this.checked) {
+                showAllAntennas();
+            } else {
+                allAntennasLayer.clearLayers();
+            }
+        });
+    </script>
+</body>
+</html>
