@@ -295,6 +295,65 @@
             width: auto;
             margin-right: 10px;
         }
+        .tech-switch-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #0f3460;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #9c27b0; /* Color 5G inicial */
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2196f3; /* Color 4G */
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .tech-label {
+            font-weight: bold;
+            font-size: 0.9em;
+            min-width: 25px;
+        }
     </style>
 </head>
 <body>
@@ -364,13 +423,22 @@
                 <div id="map"></div>
 
                 <div class="azimuth-control" id="azimuthControl" style="display: none;">
+                    <div class="tech-switch-container">
+                        <span class="tech-label" style="color: #9c27b0;">5G</span>
+                        <label class="switch">
+                            <input type="checkbox" id="techToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span class="tech-label" style="color: #2196f3;">4G</span>
+                    </div>
+
                     <label>Longitud del haz:</label>
                     <input type="range" id="beamLength" min="100" max="5000" value="1000" />
                     <span id="beamLengthValue">1000m</span>
 
                     <label style="margin-top: 10px;">Apertura del haz:</label>
-                    <input type="range" id="beamWidth" min="5" max="120" value="30" />
-                    <span id="beamWidthValue">30°</span>
+                    <input type="range" id="beamWidth" min="5" max="120" value="65" />
+                    <span id="beamWidthValue">65°</span>
 
                     <div class="checkbox-group">
                         <input type="checkbox" id="showBeamArea" checked />
@@ -826,6 +894,25 @@
             } else {
                 allAntennasLayer.clearLayers();
             }
+        });
+        // Lógica para el Switch de Tecnología 4G/5G
+        document.getElementById('techToggle').addEventListener('change', function() {
+            const beamWidthInput = document.getElementById('beamWidth');
+            const beamWidthValue = document.getElementById('beamWidthValue');
+            
+            if (this.checked) {
+                // Modo 4G: Apertura amplia (promedio 65°)
+                beamWidthInput.value = 65;
+                console.log("Tecnología cambiada a 4G (Apertura sugerida 60°-90°)");
+            } else {
+                // Modo 5G: Apertura estrecha (promedio 15°)
+                beamWidthInput.value = 15;
+                console.log("Tecnología cambiada a 5G (Apertura sugerida 10°-25°)");
+            }
+            
+            // Actualizar visualización y mapa
+            beamWidthValue.textContent = beamWidthInput.value + '°';
+            updateMap();
         });
     </script>
 </body>
