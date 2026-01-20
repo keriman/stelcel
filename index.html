@@ -601,7 +601,8 @@
                 };
             });
 
-            filteredRecords = [...allRecords];
+            // Filtrar solo registros con ubicación desde el inicio
+            filteredRecords = allRecords.filter(r => r.hasLocation);
             updateStats();
             updateRecordsList();
             showPanels();
@@ -653,9 +654,7 @@
                     <div class="datetime">${r.fecha} ${r.hora}</div>
                     <div class="number"><strong>B:</strong> ${r.numeroB}</div>
                     <div class="location">
-                        ${r.hasLocation ?
-                            `${r.lat?.toFixed(5)}, ${r.lon?.toFixed(5)} | Az: ${r.azimuth !== null ? r.azimuth + '°' : '-'}`
-                            : 'Sin ubicacion'}
+                        ${r.lat?.toFixed(5)}, ${r.lon?.toFixed(5)} | Az: ${r.azimuth !== null ? r.azimuth + '°' : '-'}
                     </div>
                 </div>
             `).join('');
@@ -845,6 +844,9 @@
             const number = document.getElementById('filterNumber').value.toLowerCase();
 
             filteredRecords = allRecords.filter(r => {
+                // Filtrar solo registros con ubicación
+                if (!r.hasLocation) return false;
+                
                 if (type && !r.tipo.includes(type)) return false;
 
                 if (dateFrom) {
@@ -872,7 +874,8 @@
             document.getElementById('filterDateFrom').value = '';
             document.getElementById('filterDateTo').value = '';
             document.getElementById('filterNumber').value = '';
-            filteredRecords = [...allRecords];
+            // Solo mostrar registros con ubicación
+            filteredRecords = allRecords.filter(r => r.hasLocation);
             updateRecordsList();
         }
 
